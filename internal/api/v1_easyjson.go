@@ -389,7 +389,7 @@ func easyjson102f8a2fEncodeGithubComScribbleRsScribbleRsInternalApi2(out *jwrite
 		out.Int(int(in.MinRounds))
 	}
 	{
-		const prefix string = ",\"maxRounds\":"
+		const prefix string = ",\"maxRounds2\":"
 		out.RawString(prefix)
 		out.Int(int(in.MaxRounds))
 	}
