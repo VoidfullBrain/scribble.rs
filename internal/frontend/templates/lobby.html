@@ -1067,7 +1067,7 @@
             this.kickVote = (data) => handleKickVoteEvent(data);
             this.ownerChange = (data) => handleOwnerChangeEvent(data);
             this.drawerKicked = (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "drawer-kicked"}}');
-            this.lobbySettingsChanged = (data) => handleLobbySettingsCHangedEvent(data);
+            this.lobbySettingsChanged = (data) => handleLobbySettingsChangedEvent(data);
             this.shutdown = (data) => handleShutdownEvent(data);
         }
 
@@ -1109,7 +1109,7 @@
             );
         }
 
-        function handleLobbySettingsCHangedEvent(data) {
+        function handleLobbySettingsChangedEvent(data) {
             rounds = data.rounds;
             updateRoundsDisplay();
             updateButtonVisibilities();
