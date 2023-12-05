@@ -1030,159 +1030,207 @@
         let roundEndTime = 0;
         let gameState = "unstarted";
         let drawingTimeSetting = "∞";
-        let wordSelectCountSetting = "3";
+        let wordSelectCountSetting = "5";
+
+        function Events() {
+            this.ready = (data) => handleReadyEvent(data);
+            this.wordChosen = (data) => setRoundEndTime(data.roundEndTime);
+            this.gameOver = (data) => handleGameOverEvent(data);
+            this.updatePlayers = (data) => applyPlayers(data);
+            this.nameChange = (data) => handleNameChangeEvent(data);
+            this.correctGuess = (data) => handleCorrectGuessEvent(data);
+            this.closeGuess = (data) => appendMessage("close-guess-message", null, '{{.Translation.Get "close-guess"}}'.format(data));
+            this.updateWordhint = (data) => handleUpdateWordHintEvent(data);
+            this.message = (data) => appendMessage(null, data.author, data.content);
+            this.systemMessage = (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', data);
+            this.nonGuessingPlayerMessage = (data) => appendMessage("non-guessing-player-message", data.author, data.content);
+            this.line = (data) => drawLine(
+                context,
+                data.fromX * scaleDownFactor(),
+                data.fromY * scaleDownFactor(),
+                data.toX * scaleDownFactor(),
+                data.toY * scaleDownFactor(),
+                data.color,
+                data.lineWidth * scaleDownFactor()
+            );
+            this.fill = (data) =>
+                fillFlood(
+                    context,
+                    data.x * scaleDownFactor(),
+                    data.y * scaleDownFactor(),
+                    data.color
+                );
+            this.clearDrawingBoard = (data) => clear(context);
+            this.nextTurn = (data) => handleNextTurnEvent(data);
+            this.yourTurn = (data) => handleYourTurnEvent(data);
+            this.drawing = (data) => applyDrawData(data);
+            this.kickVote = (data) => handleKickVoteEvent(data);
+            this.ownerChange = (data) => handleOwnerChangeEvent(data);
+            this.drawerKicked = (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "drawer-kicked"}}');
+            this.lobbySettingsChanged = (data) => handleLobbySettingsCHangedEvent(data);
+            this.shutdown = (data) => handleShutdownEvent(data);
+        }
+
+        function hyphenToUpperCase(str) {
+            let word = str.split('-');
+
+            for (let i = 1; i < word.length; i++) {
+                word[i] = word[i].charAt(0).toUpperCase() + word[i].slice(1);
+            }
+
+            return word.join('');
+        }
+
+        function handleEvent(event) {
+            const type = underScoreToUpperCase(event.type);
+            const events = new Events();
+
+            events[type](event.data);
+        }
 
         function registerMessageHandler(targetSocket) {
             targetSocket.onmessage = event => {
                 const parsed = JSON.parse(event.data);
-                if (parsed.type === "ready") {
-                    handleReadyEvent(parsed.data);
-                } else if (parsed.type === "word-chosen") {
-                    setRoundEndTime(parsed.data.roundEndTime);
-                } else if (parsed.type === "game-over") {
-                    let ready = parsed.data;
-                    showRoundEndMessage(ready.previousWord);
-                    handleReadyEvent(ready);
-                } else if (parsed.type === "update-players") {
-                    applyPlayers(parsed.data);
-                } else if (parsed.type === "name-change") {
-                    const player = getPlayer(parsed.data.playerId);
-                    if (player !== null) {
-                        player.name = parsed.data.playerName;
-                    }
+                handleEvent(parsed);
+            }
+        }
 
-                    const playernameSpan = document.getElementById("playername-" + parsed.data.playerId);
-                    if (playernameSpan !== null) {
-                        playernameSpan.innerText = parsed.data.playerName;
-                    }
-                    if (parsed.data.playerId === ownID) {
-                        setUsernameLocally(parsed.data.playerName);
-                    }
-                    if (parsed.data.playerId === drawerID) {
-                        waitChooseDrawerSpan.innerText = parsed.data.playerName;
-                    }
-                } else if (parsed.type === "correct-guess") {
-                    playWav('{{.RootPath}}/resources/plop.wav?cache_bust={{.CacheBust}}');
+        function handleGameOverEvent(data) {
+            showRoundEndMessage(data.previousWord);
+            handleReadyEvent(data);
+        }
 
-                    if (parsed.data === ownID) {
-                        appendMessage("correct-guess-message", null, '{{.Translation.Get "correct-guess"}}');
-                    } else {
-                        const player = getPlayer(parsed.data)
-                        if (player !== null) {
-                            appendMessage("correct-guess-message-other-player", null, '{{.Translation.Get "correct-guess-other-player"}}'.format(player.name));
-                        }
-                    }
-                } else if (parsed.type === "close-guess") {
-                    appendMessage("close-guess-message", null, '{{.Translation.Get "close-guess"}}'.format(parsed.data));
-                } else if (parsed.type === "update-wordhint") {
-                    // this event is (also) sent if the drawer has choosen a word, so we can hide the waitChooseDialog
-                    waitChooseDialog.style.visibility = "hidden";
-                    applyWordHints(parsed.data.wordHints);
-                    setRoundEndTime(parsed.data.roundEndTime);
-                    startRoundTimer();
-                } else if (parsed.type === "message") {
-                    appendMessage(null, parsed.data.author, parsed.data.content);
-                } else if (parsed.type === "system-message") {
-                    appendMessage("system-message", '{{.Translation.Get "system"}}', parsed.data);
-                } else if (parsed.type === "non-guessing-player-message") {
-                    appendMessage("non-guessing-player-message", parsed.data.author, parsed.data.content);
-                } else if (parsed.type === "line") {
-                    drawLine(context, parsed.data.fromX * scaleDownFactor(), parsed.data.fromY * scaleDownFactor(), parsed.data.toX * scaleDownFactor(), parsed.data.toY * scaleDownFactor(), parsed.data.color, parsed.data.lineWidth * scaleDownFactor());
-                } else if (parsed.type === "fill") {
-                    fillFlood(context, parsed.data.x * scaleDownFactor(), parsed.data.y * scaleDownFactor(), parsed.data.color);
-                } else if (parsed.type === "clear-drawing-board") {
-                    clear(context);
-                } else if (parsed.type === "next-turn") {
-                    setRoundEndTime(parsed.data.roundEndTime);
+        function handleShutdownEvent(data) {
+            socket.onclose = null;
+            socket.close();
+            showDialog(
+                "shutdown-info", "Server shutting down",
+                document.createTextNode("Sorry, but the server is about to shut down. Please come back at a later time.")
+            );
+        }
 
-                    //As soon as a turn starts, the round should be ongoing, so we make
-                    //sure that all types of dialogs, that indicate the game isn't
-                    //ongoing, are not visible anymore.
-                    unstartedDialog.style.visibility = "hidden";
-                    startDialog.style.visibility = "hidden";
-                    restartButton.style.display = "none";
-                    gameOverDialog.style.visibility = "hidden";
+        function handleLobbySettingsCHangedEvent(data) {
+            rounds = data.rounds;
+            updateRoundsDisplay();
+            updateButtonVisibilities();
+            appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "lobby-settings-changed"}}\n\n'
+                + '{{.Translation.Get "drawing-time-setting"}}: ' + data.drawingTime + "\n"
+                + '{{.Translation.Get "word-select-count-setting"}}: ' + data.wordSelectCount + "\n"
+                + '{{.Translation.Get "rounds-setting"}}: ' + data.rounds + "\n"
+                + '{{.Translation.Get "public-lobby-setting"}}: ' + data.public + "\n"
+                + '{{.Translation.Get "max-players-setting"}}: ' + data.maxPlayers + "\n"
+                + '{{.Translation.Get "custom-words-per-turn-setting"}}: ' + data.customWordsPerTurn + "%\n"
+                + '{{.Translation.Get "players-per-ip-limit-setting"}}: ' + data.clientsPerIpLimit);
+        }
 
-                    //If a player doesn't choose, the dialog will still be up.
-                    wordDialog.style.visibility = "hidden";
-                    playWav('{{.RootPath}}/resources/end-turn.wav?cache_bust={{.CacheBust}}');
+        function handleOwnerChangeEvent(data) {
+            ownerID = data.playerId;
+            updateButtonVisibilities();
+            appendMessage(
+                "system-message",
+                '{{.Translation.Get "system"}}',
+                '{{.Translation.Get "owner-change"}}'.format(data.playerName)
+            );
+        }
 
-                    clear(context);
+        function handleKickVoteEvent(data) {
+            alert('{{.Translation.Get "self-kicked"}}');
+            document.location.href = "{{.RootPath}}/";
+        }
 
-                    round = parsed.data.round;
-                    updateRoundsDisplay();
-                    applyPlayers(parsed.data.players);
+        function handleYourTurnEvent(data) {
+            playWav('{{.RootPath}}/resources/your-turn.wav?cache_bust={{.CacheBust}}');
+            //This dialog could potentially stay visible from last
+            //turn, in case nobody has chosen a word.
+            waitChooseDialog.style.visibility = "hidden";
 
-                    //Even though we always hide the dialog in the "your-turn"
-                    //event handling, it will be shortly visible if we it here.
-                    if (drawerID !== ownID) {
-                        //Show additional dialog, that another user (drawer) is choosing a word
-                        waitChooseDrawerSpan.innerText = drawerName;
-                        if (parsed.data.length <= 1) {
-                            waitChooseDialog.style.visibility = "visible";
-                        }
-                    }
+            promptWords(data);
+        }
 
-                    //We clear this, since there's no word chosen right now.
-                    wordContainer.innerHTML = "";
+        function handleNextTurnEvent(data) {
+            setRoundEndTime(data.roundEndTime);
 
-                    allowDrawing = false;
-                    updateCursor();
+            //As soon as a turn starts, the round should be ongoing, so we make
+            //sure that all types of dialogs, that indicate the game isn't
+            //ongoing, are not visible anymore.
+            unstartedDialog.style.visibility = "hidden";
+            startDialog.style.visibility = "hidden";
+            restartButton.style.display = "none";
+            gameOverDialog.style.visibility = "hidden";
 
-                    if (gameState === "ongoing") {
-                        //The previous turn has ended.
-                        showRoundEndMessage(parsed.data.previousWord);
-                    } else {
-                        //First turn, the game starts
-                        gameState = "ongoing";
-                    }
-                } else if (parsed.type === "your-turn") {
-                    playWav('{{.RootPath}}/resources/your-turn.wav?cache_bust={{.CacheBust}}');
-                    //This dialog could potentially stay visible from last
-                    //turn, in case nobody has chosen a word.
-                    waitChooseDialog.style.visibility = "hidden";
+            //If a player doesn't choose, the dialog will still be up.
+            wordDialog.style.visibility = "hidden";
+            playWav('{{.RootPath}}/resources/end-turn.wav?cache_bust={{.CacheBust}}');
 
-                    promptWords(parsed.data);
+            clear(context);
 
-                } else if (parsed.type === "drawing") {
-                    applyDrawData(parsed.data);
-                } else if (parsed.type === "kick-vote") {
-                    if (parsed.data.playerId === ownID && parsed.data.voteCount >= parsed.data.requiredVoteCount) {
-                        alert('{{.Translation.Get "self-kicked"}}');
-                        document.location.href = "{{.RootPath}}/";
-                    } else {
-                        let kickMessage = '{{.Translation.Get "kick-vote"}}'.format(parsed.data.voteCount, parsed.data.requiredVoteCount, parsed.data.playerName);
-                        if (parsed.data.voteCount >= parsed.data.requiredVoteCount) {
-                            kickMessage += ' {{.Translation.Get "player-kicked"}}';
-                        }
-                        appendMessage("system-message", '{{.Translation.Get "system"}}', kickMessage);
-                    }
-                } else if (parsed.type === "owner-change") {
-                    ownerID = parsed.data.playerId;
-                    updateButtonVisibilities();
-                    appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "owner-change"}}'.format(parsed.data.playerName));
-                } else if (parsed.type === "drawer-kicked") {
-                    appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "drawer-kicked"}}');
-                } else if (parsed.type === "lobby-settings-changed") {
-                    rounds = parsed.data.rounds;
-                    updateRoundsDisplay();
-                    updateButtonVisibilities();
-                    appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "lobby-settings-changed"}}\n\n'
-                        + '{{.Translation.Get "drawing-time-setting"}}: ' + parsed.data.drawingTime + "\n"
-                        + '{{.Translation.Get "word-select-count-setting"}}: ' + parsed.data.wordSelectCount + "\n"
-                        + '{{.Translation.Get "rounds-setting"}}: ' + parsed.data.rounds + "\n"
-                        + '{{.Translation.Get "public-lobby-setting"}}: ' + parsed.data.public + "\n"
-                        + '{{.Translation.Get "max-players-setting"}}: ' + parsed.data.maxPlayers + "\n"
-                        + '{{.Translation.Get "custom-words-per-turn-setting"}}: ' + parsed.data.customWordsPerTurn + "%\n"
-                        + '{{.Translation.Get "players-per-ip-limit-setting"}}: ' + parsed.data.clientsPerIpLimit);
-                } else if (parsed.type === "shutdown") {
-                    socket.onclose = null;
-                    socket.close();
-                    showDialog("shutdown-info", "Server shutting down",
-                        document.createTextNode("Sorry, but the server is about to shut down. Please come back at a later time."));
+            round = data.round;
+            updateRoundsDisplay();
+            applyPlayers(data.players);
+
+            //Even though we always hide the dialog in the "your-turn"
+            //event handling, it will be shortly visible if we it here.
+            if (drawerID !== ownID) {
+                //Show additional dialog, that another user (drawer) is choosing a word
+                waitChooseDrawerSpan.innerText = drawerName;
+                if (data.length <= 1) {
+                    waitChooseDialog.style.visibility = "visible";
                 }
             }
-        };
+
+            //We clear this, since there's no word chosen right now.
+            wordContainer.innerHTML = "";
+
+            allowDrawing = false;
+            updateCursor();
+
+            if (gameState === "ongoing") {
+                //The previous turn has ended.
+                showRoundEndMessage(data.previousWord);
+            } else {
+                //First turn, the game starts
+                gameState = "ongoing";
+            }
+        }
+
+        function handleUpdateWordHintEvent(data) {
+            // this event is (also) sent if the drawer has choosen a word, so we can hide the waitChooseDialog
+            waitChooseDialog.style.visibility = "hidden";
+            applyWordHints(data.wordHints);
+            setRoundEndTime(data.roundEndTime);
+            startRoundTimer();
+        }
+
+        function handleCorrectGuessEvent(data) {
+            playWav('{{.RootPath}}/resources/plop.wav?cache_bust={{.CacheBust}}');
+
+            if (data === ownID) {
+                appendMessage("correct-guess-message", null, '{{.Translation.Get "correct-guess"}}');
+            } else {
+                const player = getPlayer(data)
+                if (player !== null) {
+                    appendMessage("correct-guess-message-other-player", null, '{{.Translation.Get "correct-guess-other-player"}}'.format(player.name));
+                }
+            }
+        }
+
+        function handleNameChangeEvent(data) {
+            const player = getPlayer(data.playerId);
+            if (player !== null) {
+                player.name = data.playerName;
+            }
+
+            const playernameSpan = document.getElementById("playername-" + data.playerId);
+            if (playernameSpan !== null) {
+                playernameSpan.innerText = data.playerName;
+            }
+            if (data.playerId === ownID) {
+                setUsernameLocally(data.playerName);
+            }
+            if (data.playerId === drawerID) {
+                waitChooseDrawerSpan.innerText = data.playerName;
+            }
+        }
 
         function showRoundEndMessage(previousWord) {
             if (previousWord === "") {
