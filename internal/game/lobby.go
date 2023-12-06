@@ -702,7 +702,7 @@ func advanceLobbyPredefineDrawer(lobby *Lobby, roundOver bool, newDrawer *Player
         Data: &NextTurn{
             Round:        lobby.Round,
             Players:      lobby.players,
-            RoundEndTime: int(lobby.roundEndTime - getTimeAsMillis()),
+            RoundEndTime: int(lobby.EditableLobbySettings.DrawingTime),
             PreviousWord: previousWord,
         },
     })

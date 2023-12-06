@@ -1032,19 +1032,19 @@
         let drawingTimeSetting = "∞";
         let wordSelectCountSetting = "5";
 
-        function Events() {
-            this.ready = (data) => handleReadyEvent(data);
-            this.wordChosen = (data) => setRoundEndTime(data.roundEndTime);
-            this.gameOver = (data) => handleGameOverEvent(data);
-            this.updatePlayers = (data) => applyPlayers(data);
-            this.nameChange = (data) => handleNameChangeEvent(data);
-            this.correctGuess = (data) => handleCorrectGuessEvent(data);
-            this.closeGuess = (data) => appendMessage("close-guess-message", null, '{{.Translation.Get "close-guess"}}'.format(data));
-            this.updateWordhint = (data) => handleUpdateWordHintEvent(data);
-            this.message = (data) => appendMessage(null, data.author, data.content);
-            this.systemMessage = (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', data);
-            this.nonGuessingPlayerMessage = (data) => appendMessage("non-guessing-player-message", data.author, data.content);
-            this.line = (data) => drawLine(
+        const events = {
+            ready: (data) => handleReadyEvent(data),
+            wordChosen: (data) => setRoundEndTime(data.roundEndTime),
+            gameOver: (data) => handleGameOverEvent(data),
+            updatePlayers: (data) => applyPlayers(data),
+            nameChange: (data) => handleNameChangeEvent(data),
+            correctGuess: (data) => handleCorrectGuessEvent(data),
+            closeGuess: (data) => appendMessage("close-guess-message", null, '{{.Translation.Get "close-guess"}}'.format(data)),
+            updateWordhint: (data) => handleUpdateWordHintEvent(data),
+            message: (data) => appendMessage(null, data.author, data.content),
+            systemMessage: (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', data),
+            nonGuessingPlayerMessage: (data) => appendMessage("non-guessing-player-message", data.author, data.content),
+            line: (data) => drawLine(
                 context,
                 data.fromX * scaleDownFactor(),
                 data.fromY * scaleDownFactor(),
@@ -1052,25 +1052,28 @@
                 data.toY * scaleDownFactor(),
                 data.color,
                 data.lineWidth * scaleDownFactor()
-            );
-            this.fill = (data) =>
+            ),
+            fill: (data) =>
                 fillFlood(
                     context,
                     data.x * scaleDownFactor(),
                     data.y * scaleDownFactor(),
                     data.color
-                );
-            this.clearDrawingBoard = (data) => clear(context);
-            this.nextTurn = (data) => handleNextTurnEvent(data);
-            this.yourTurn = (data) => handleYourTurnEvent(data);
-            this.drawing = (data) => applyDrawData(data);
-            this.kickVote = (data) => handleKickVoteEvent(data);
-            this.ownerChange = (data) => handleOwnerChangeEvent(data);
-            this.drawerKicked = (data) => appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "drawer-kicked"}}');
-            this.lobbySettingsChanged = (data) => handleLobbySettingsChangedEvent(data);
-            this.shutdown = (data) => handleShutdownEvent(data);
+                ),
+            clearDrawingBoard: () => clear(context),
+            nextTurn: (data) => handleNextTurnEvent(data),
+            yourTurn: (data) => handleYourTurnEvent(data),
+            drawing: (data) => applyDrawData(data),
+            kickVote: (data) => handleKickVoteEvent(data),
+            ownerChange: (data) => handleOwnerChangeEvent(data),
+            drawerKicked: (data) => appendMessage(
+                "system-message",
+                '{{.Translation.Get "system"}}',
+                '{{.Translation.Get "drawer-kicked"}}'
+            ),
+            lobbySettingsChanged: (data) => handleLobbySettingsChangedEvent(data),
+            shutdown: (data) => handleShutdownEvent(data),
         }
-
         function hyphenToUpperCase(str) {
             let word = str.split('-');
 
@@ -1082,8 +1085,8 @@
         }
 
         function handleEvent(event) {
-            const type = underScoreToUpperCase(event.type);
-            const events = new Events();
+            const type = hyphenToUpperCase(event.type);
+            // const events = new Events();
 
             events[type](event.data);
         }
@@ -1148,8 +1151,6 @@
         }
 
         function handleNextTurnEvent(data) {
-            setRoundEndTime(data.roundEndTime);
-
             //As soon as a turn starts, the round should be ongoing, so we make
             //sure that all types of dialogs, that indicate the game isn't
             //ongoing, are not visible anymore.
@@ -1167,6 +1168,8 @@
             round = data.round;
             updateRoundsDisplay();
             applyPlayers(data.players);
+            console.log(data.roundEndTime);
+            setInitialRoundTime(data.roundEndTime);
 
             //Even though we always hide the dialog in the "your-turn"
             //event handling, it will be shortly visible if we it here.
@@ -1267,17 +1270,12 @@
             roundEndTime = Date.now() + timeLeftMs;
         }
 
+        function setInitialRoundTime(roundTime) {
+            timeLeftValue.innerHTML = "" + roundTime;
+        }
+
         function handleReadyEvent(ready) {
-            setRoundEndTime(ready.roundEndTime);
-            ownerID = ready.ownerId;
-            setUsernameLocally(ready.playerName);
-            allowDrawing = ready.allowDrawing;
-            ownID = ready.playerId;
-            round = ready.round;
-            rounds = ready.rounds;
-            gameState = ready.gameState;
-            drawingTimeSetting = ready.drawingTimeSetting;
-            wordSelectCountSetting = ready.wordSelectCountSetting;
+            setInitialGameData(ready);
             updateRoundsDisplay();
             updateButtonVisibilities();
 
@@ -1292,35 +1290,44 @@
             }
             updateCursor();
 
-            if (ready.gameState === "unstarted") {
-                if (ownerID === ownID) {
-                    startDialog.style.visibility = "visible";
-                } else {
-                    unstartedDialog.style.visibility = "visible";
-                }
-            } else if (ready.gameState === "gameOver") {
-                gameOverDialog.style.visibility = "visible";
-                if (ownerID === ownID) {
-                    restartButton.style.display = "block";
-                }
+            const gameStateEvents = {
+                unstarted:  () => handleGameStateUnstartedEvent(),
+                gameOver:   () => handleGameStateGameOverEvent(),
+                ongoing:    () => handleGameStateOngoingEvent(),
+            };
 
-                gameOverScoreboard.innerHTML = "";
+            gameStateEvents[ready.gameState]();
+        }
 
-                //Copying array so we can sort.
-                const players = cachedPlayers.slice();
-                players.sort((a, b) => {
-                    return a.rank - b.rank;
-                });
+        function handleGameStateOngoingEvent() {
+            waitChooseDrawerSpan.innerText = drawerName;
+            waitChooseDialog.style.visibility = "visible";
+        }
 
-                //These two are required for displaying the "game over / win / tie" message.
-                let countOfRankOnePlayers = 0;
-                let isSelfRankOne = false;
-                for (let i = 0; i < players.length; i++) {
-                    const player = players[i];
-                    if (!player.connected) {
-                        continue;
-                    }
+        function initializeGameOverDialog() {
+            gameOverDialog.style.visibility = "visible";
+            if (ownerID === ownID) {
+                restartButton.style.display = "block";
+            }
 
+            gameOverScoreboard.innerHTML = "";
+        }
+
+        function handleGameStateGameOverEvent() {
+            initializeGameOverDialog();
+
+            //Copying array so we can sort.
+            let players = cachedPlayers.slice();
+            players.sort((a, b) => {
+                return a.rank - b.rank;
+            });
+
+            //These two are required for displaying the "game over / win / tie" message.
+            let countOfRankOnePlayers = 0;
+            let isSelfRankOne = false;
+
+            players.forEach((player) => {
+                if (player.connected) {
                     if (player.rank === 1) {
                         countOfRankOnePlayers++;
                         if (player.id === ownID) {
@@ -1331,48 +1338,62 @@
                     //Even if we don't want to show a player-entry, we still need to iterate
                     //over all players to handle the dialog titles.
                     if (player.rank <= 5) {
-                        const newScoreboardEntry = document.createElement("div");
-                        newScoreboardEntry.classList.add("gameover-scoreboard-entry");
-                        if (player.id === ownID) {
-                            newScoreboardEntry.classList.add("gameover-scoreboard-entry-self");
-                        }
-
-                        const scoreboardRankDiv = document.createElement("div");
-                        scoreboardRankDiv.classList.add("gameover-scoreboard-rank");
-                        scoreboardRankDiv.innerText = player.rank;
-                        newScoreboardEntry.appendChild(scoreboardRankDiv);
-
-                        const scoreboardNameDiv = document.createElement("div");
-                        scoreboardNameDiv.classList.add("gameover-scoreboard-name");
-                        scoreboardNameDiv.innerText = player.name;
-                        newScoreboardEntry.appendChild(scoreboardNameDiv);
-
-                        const scoreboardScoreSpan = document.createElement("span");
-                        scoreboardScoreSpan.classList.add("gameover-scoreboard-score");
-                        scoreboardScoreSpan.innerText = player.score;
-                        newScoreboardEntry.appendChild(scoreboardScoreSpan);
-
-                        gameOverScoreboard.appendChild(newScoreboardEntry);
+                        createScoreBoard(player);
                     }
                 }
+            });
 
-                if (isSelfRankOne) {
-                    if (countOfRankOnePlayers >= 2) {
-                        gameOverDialogTitle.innerText = '{{.Translation.Get "game-over-tie"}}';
-                    } else {
-                        gameOverDialogTitle.innerText = '{{.Translation.Get "game-over-win"}}';
-                    }
-                } else {
-                    gameOverDialogTitle.innerText = '{{.Translation.Get "game-over"}}'.format(player.rank, player.score);
-                }
-            } else if (ready.gameState === "ongoing") {
-                // Lack of wordHints implies that word has been chosen yet.
-                if (ready.wordHints === null && drawerID !== ownID) {
-                    waitChooseDrawerSpan.innerText = drawerName;
+            gameOverDialogTitle.innerText = '{{.Translation.Get "game-over"}}'.format(player.rank, player.score);
 
-                    waitChooseDialog.style.visibility = "visible";
+            if (isSelfRankOne) {
+                gameOverDialogTitle.innerText = '{{.Translation.Get "game-over-win"}}';
+
+                if (countOfRankOnePlayers >= 2) {
+                    gameOverDialogTitle.innerText = '{{.Translation.Get "game-over-tie"}}';
                 }
             }
+        }
+
+        function handleGameStateUnstartedEvent() {
+            if (ownerID === ownID) {
+                startDialog.style.visibility = "visible";
+            } else {
+                unstartedDialog.style.visibility = "visible";
+            }
+        }
+
+        function setInitialGameData(data) {
+            ownerID = data.ownerId;
+            allowDrawing = data.allowDrawing;
+            ownID = data.playerId;
+            round = data.round;
+            rounds = data.rounds;
+            gameState = data.gameState;
+            drawingTimeSetting = data.drawingTimeSetting;
+            wordSelectCountSetting = data.wordSelectCountSetting;
+            setRoundEndTime(data.roundEndTime);
+            setUsernameLocally(data.playerName);
+        }
+
+        function createScoreBoard(player) {
+            const newScoreboardEntry = document.createElement("div");
+            newScoreboardEntry.classList.add("gameover-scoreboard-entry");
+            if (player.id === ownID) {
+                newScoreboardEntry.classList.add("gameover-scoreboard-entry-self");
+            }
+
+            createScoreboardItem('div', 'gameover-scoreboard-rank', player.rank, newScoreboardEntry);
+            createScoreboardItem('div', 'gameover-scoreboard-name', player.name, newScoreboardEntry);
+            createScoreboardItem('span', 'gameover-scoreboard-score', player.score, newScoreboardEntry);
+
+            gameOverScoreboard.appendChild(newScoreboardEntry);
+        }
+
+        function createScoreboardItem(tag, classList, text, appendTo) {
+            const scoreboardRankDiv = document.createElement("div");
+            scoreboardRankDiv.classList.add("gameover-scoreboard-rank");
+            scoreboardRankDiv.innerText = player.rank;
+            appendTo.appendChild(scoreboardRankDiv);
         }
 
         function updateButtonVisibilities() {
@@ -1426,15 +1447,6 @@
         if(!lobbySettingsTimerStart.checked) {
             startRoundTimer();
         }
-        // window.setInterval(() => {
-        //     if (gameState === "ongoing") {
-        //         const msLeft = roundEndTime - Date.now();
-        //         const secondsLeft = Math.max(0, Math.floor(msLeft / 1000));
-        //         timeLeftValue.innerText = "" + secondsLeft
-        //     } else {
-        //         timeLeftValue.innerText = "" + drawingTimeSetting;
-        //     }
-        // }, 500);
 
         //appendMessage adds a new message to the message container. If the
         //message amount is too high, we cut off a part of the messages to
