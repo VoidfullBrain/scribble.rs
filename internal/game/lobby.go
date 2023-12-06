@@ -692,7 +692,6 @@ func advanceLobbyPredefineDrawer(lobby *Lobby, roundOver bool, newDrawer *Player
 	lobby.State = Ongoing
 	lobby.wordChoice = GetRandomWords(lobby.WordSelectCount, lobby)
 
-
     if !lobby.TimerStart {
         startRoundTimer(lobby)
     }

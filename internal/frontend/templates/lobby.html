@@ -1192,6 +1192,11 @@
             } else {
                 //First turn, the game starts
                 gameState = "ongoing";
+
+                if(!lobbySettingsTimerStart.checked) {
+                    setRoundEndTime(data.roundEndTime * 1000);
+                    startRoundTimer();
+                }
             }
         }
 
@@ -1200,7 +1205,10 @@
             waitChooseDialog.style.visibility = "hidden";
             applyWordHints(data.wordHints);
             setRoundEndTime(data.roundEndTime);
-            startRoundTimer();
+
+            if(lobbySettingsTimerStart.checked) {
+                startRoundTimer();
+            }
         }
 
         function handleCorrectGuessEvent(data) {
@@ -1270,7 +1278,7 @@
         }
 
         function setInitialRoundTime(roundTime) {
-            timeLeftValue.innerHTML = "" + roundTime;
+            timeLeftValue.innerText = "" + roundTime;
         }
 
         function handleReadyEvent(ready) {
@@ -1371,6 +1379,7 @@
             drawingTimeSetting = data.drawingTimeSetting;
             wordSelectCountSetting = data.wordSelectCountSetting;
             setRoundEndTime(data.roundEndTime);
+            setInitialRoundTime(data.drawingTimeSetting);
             setUsernameLocally(data.playerName);
         }
 
@@ -1436,15 +1445,12 @@
                 if (gameState === "ongoing") {
                     const msLeft = roundEndTime - Date.now();
                     const secondsLeft = Math.max(0, Math.floor(msLeft / 1000));
+
                     timeLeftValue.innerText = "" + secondsLeft
                 } else {
                     timeLeftValue.innerText = "" + drawingTimeSetting;
                 }
             }, 500);
-        }
-
-        if(!lobbySettingsTimerStart.checked) {
-            startRoundTimer();
         }
 
         //appendMessage adds a new message to the message container. If the
