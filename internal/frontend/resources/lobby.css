@@ -56,7 +56,8 @@
 #message-char-count {
     font-weight: bold;
     width: 1.5rem;
-    padding-top: 0.75rem;
+    padding-top: 0.5rem;
+    margin-top: 5px;
     background-color: white;
 }
 
@@ -207,7 +208,7 @@
     margin-top: 5px
 }
 
-#message-input:focus {
+#message-input:focus, #message-input:focus +#message-char-count {
     outline: none;
     background-color: rgb(250, 211, 252);
 }
