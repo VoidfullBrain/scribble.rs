@@ -109,7 +109,7 @@ func initEnglishTranslation() Translation {
 	translation.put("submit-feedback", "Feedback")
 	translation.put("stats", "Status")
 
-	translation.put("copy", "Copy")
+	translation.put("copy", "Copy lobby link")
 
 	RegisterTranslation("en", translation)
 	RegisterTranslation("en-de", translation)

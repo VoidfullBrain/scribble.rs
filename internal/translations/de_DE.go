@@ -104,7 +104,7 @@ func initGermanTranslation() {
 	translation.put("submit-feedback", "Feedback")
 	translation.put("stats", "Status")
 
-	translation.put("copy", "Kopieren");
+	translation.put("copy", "Lobbylink Kopieren");
 
 	RegisterTranslation("de", translation)
 	RegisterTranslation("de-de", translation)
