@@ -384,6 +384,11 @@
                     <img alt="{{.Translation.Get "undo"}}" title="{{.Translation.Get "undo"}}"
                         src="{{.RootPath}}/resources/undo.svg?cache_bust={{.CacheBust}}" width="40px" height="40px" />
                 </button>
+                <button class="canvas-button toolbox-group" onclick="copyLink()"
+                        alt="{{.Translation.Get "copy"}}" title="{{.Translation.Get "copy"}}">
+                <img alt="{{.Translation.Get "copy"}}" title="{{.Translation.Get "copy"}}"
+                src="{{.RootPath}}/resources/copy-link.svg?cache_bust={{.CacheBust}}" width="40px" height="40px" />
+                </button>
             </div>
 
             <div id="chat">
@@ -940,6 +945,15 @@
                     type: "undo"
                 }));
             }
+        }
+
+        function copyLink() {
+            navigator.clipboard
+                .writeText(window.location.href)
+                .then(
+                    (success) => console.log("text copied"),
+                    (err) => console.log("error copying text")
+                );
         }
 
         //Used to restore the last message on arrow up.
