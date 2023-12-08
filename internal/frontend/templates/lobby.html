@@ -1087,8 +1087,11 @@
 
         function handleEvent(event) {
             const type = hyphenToUpperCase(event.type);
-
-            events[type](event.data);
+            if(events.hasOwnProperty(type)) {
+                events[type](event.data);
+            } else {
+                console.log(`The event type ${type} has not been registered.`);
+            }
         }
 
         function registerMessageHandler(targetSocket) {
