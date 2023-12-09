@@ -313,7 +313,7 @@ func handleMessage(message string, sender *Player, lobby *Lobby) {
 				lobby.WriteObject(sender, Event{
                     Type: EventTypeUpdateWordHint,
                     Data: &WordHintData{
-                        WordHints: lobby.wordHints,
+                        WordHints: lobby.wordHintsShown,
                         RoundEndTime: int(lobby.roundEndTime - getTimeAsMillis()),
                     },
                 });
