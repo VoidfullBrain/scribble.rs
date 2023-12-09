@@ -990,7 +990,7 @@
                 type: "choose-word",
                 data: index
             }));
-            wordChosen = true;
+
             allowDrawing = true;
             updateCursor();
             wordDialog.style.visibility = "hidden";
@@ -1115,12 +1115,12 @@
             }
         }
 
-        function handleGameOverEvent(data) {
-            showRoundEndMessage(data.previousWord);
-            handleReadyEvent(data);
+        function handleGameOverEvent(event) {
+            showRoundEndMessage(event.previousWord);
+            handleReadyEvent(event);
         }
 
-        function handleShutdownEvent(data) {
+        function handleShutdownEvent(event) {
             socket.onclose = null;
             socket.close();
             showDialog(
@@ -1129,45 +1129,45 @@
             );
         }
 
-        function handleLobbySettingsChangedEvent(data) {
-            rounds = data.rounds;
+        function handleLobbySettingsChangedEvent(event) {
+            rounds = event.rounds;
             updateRoundsDisplay();
             updateButtonVisibilities();
             appendMessage("system-message", '{{.Translation.Get "system"}}', '{{.Translation.Get "lobby-settings-changed"}}\n\n'
-                + '{{.Translation.Get "drawing-time-setting"}}: ' + data.drawingTime + "\n"
-                + '{{.Translation.Get "word-select-count-setting"}}: ' + data.wordSelectCount + "\n"
-                + '{{.Translation.Get "rounds-setting"}}: ' + data.rounds + "\n"
-                + '{{.Translation.Get "public-lobby-setting"}}: ' + data.public + "\n"
-                + '{{.Translation.Get "max-players-setting"}}: ' + data.maxPlayers + "\n"
-                + '{{.Translation.Get "custom-words-per-turn-setting"}}: ' + data.customWordsPerTurn + "%\n"
-                + '{{.Translation.Get "players-per-ip-limit-setting"}}: ' + data.clientsPerIpLimit);
+                + '{{.Translation.Get "drawing-time-setting"}}: ' + event.drawingTime + "\n"
+                + '{{.Translation.Get "word-select-count-setting"}}: ' + event.wordSelectCount + "\n"
+                + '{{.Translation.Get "rounds-setting"}}: ' + event.rounds + "\n"
+                + '{{.Translation.Get "public-lobby-setting"}}: ' + event.public + "\n"
+                + '{{.Translation.Get "max-players-setting"}}: ' + event.maxPlayers + "\n"
+                + '{{.Translation.Get "custom-words-per-turn-setting"}}: ' + event.customWordsPerTurn + "%\n"
+                + '{{.Translation.Get "players-per-ip-limit-setting"}}: ' + event.clientsPerIpLimit);
         }
 
-        function handleOwnerChangeEvent(data) {
-            ownerID = data.playerId;
+        function handleOwnerChangeEvent(event) {
+            ownerID = event.playerId;
             updateButtonVisibilities();
             appendMessage(
                 "system-message",
                 '{{.Translation.Get "system"}}',
-                '{{.Translation.Get "owner-change"}}'.format(data.playerName)
+                '{{.Translation.Get "owner-change"}}'.format(event.playerName)
             );
         }
 
-        function handleKickVoteEvent(data) {
+        function handleKickVoteEvent(event) {
             alert('{{.Translation.Get "self-kicked"}}');
             document.location.href = "{{.RootPath}}/";
         }
 
-        function handleYourTurnEvent(data) {
+        function handleYourTurnEvent(event) {
             playWav('{{.RootPath}}/resources/your-turn.wav?cache_bust={{.CacheBust}}');
             //This dialog could potentially stay visible from last
             //turn, in case nobody has chosen a word.
             waitChooseDialog.style.visibility = "hidden";
 
-            promptWords(data);
+            promptWords(event);
         }
 
-        function handleNextTurnEvent(data) {
+        function handleNextTurnEvent(event) {
             //As soon as a turn starts, the round should be ongoing, so we make
             //sure that all types of dialogs, that indicate the game isn't
             //ongoing, are not visible anymore.
@@ -1182,17 +1182,17 @@
 
             clear(context);
 
-            round = data.round;
+            round = event.round;
             updateRoundsDisplay();
-            applyPlayers(data.players);
-            setInitialRoundTime(data.roundEndTime);
+            applyPlayers(event.players);
+            setInitialRoundTime(event.roundEndTime);
 
             //Even though we always hide the dialog in the "your-turn"
             //event handling, it will be shortly visible if we it here.
             if (drawerID !== ownID) {
                 //Show additional dialog, that another user (drawer) is choosing a word
                 waitChooseDrawerSpan.innerText = drawerName;
-                if (data.length <= 1) {
+                if (event.length <= 1) {
                     waitChooseDialog.style.visibility = "visible";
                 }
             }
@@ -1205,57 +1205,58 @@
 
             if (gameState === "ongoing") {
                 //The previous turn has ended.
-                showRoundEndMessage(data.previousWord);
+                showRoundEndMessage(event.previousWord);
             } else {
                 //First turn, the game starts
                 gameState = "ongoing";
 
                 if(!lobbySettingsTimerStart.checked) {
-                    setRoundEndTime(data.roundEndTime * 1000);
+                    setRoundEndTime(event.roundEndTime * 1000);
                     startRoundTimer();
                 }
             }
         }
 
-        function handleUpdateWordHintEvent(data) {
+        function handleUpdateWordHintEvent(event) {
             // this event is (also) sent if the drawer has choosen a word, so we can hide the waitChooseDialog
             waitChooseDialog.style.visibility = "hidden";
-            applyWordHints(data.wordHints);
-            setRoundEndTime(data.roundEndTime);
+            const player = getCurrentPLayerFromPLayerList();
+            applyWordHints(event.wordHints);
+            setRoundEndTime(event.roundEndTime);
 
             if(lobbySettingsTimerStart.checked) {
                 startRoundTimer();
             }
         }
 
-        function handleCorrectGuessEvent(data) {
+        function handleCorrectGuessEvent(event) {
             playWav('{{.RootPath}}/resources/plop.wav?cache_bust={{.CacheBust}}');
 
-            if (data === ownID) {
+            if (event === ownID) {
                 appendMessage("correct-guess-message", null, '{{.Translation.Get "correct-guess"}}');
             } else {
-                const player = getPlayer(data)
+                const player = getPlayer(event)
                 if (player !== null) {
                     appendMessage("correct-guess-message-other-player", null, '{{.Translation.Get "correct-guess-other-player"}}'.format(player.name));
                 }
             }
         }
 
-        function handleNameChangeEvent(data) {
-            const player = getPlayer(data.playerId);
+        function handleNameChangeEvent(event) {
+            const player = getPlayer(event.playerId);
             if (player !== null) {
-                player.name = data.playerName;
+                player.name = event.playerName;
             }
 
-            const playernameSpan = document.getElementById("playername-" + data.playerId);
+            const playernameSpan = document.getElementById("playername-" + event.playerId);
             if (playernameSpan !== null) {
-                playernameSpan.innerText = data.playerName;
+                playernameSpan.innerText = event.playerName;
             }
-            if (data.playerId === ownID) {
-                setUsernameLocally(data.playerName);
+            if (event.playerId === ownID) {
+                setUsernameLocally(event.playerName);
             }
-            if (data.playerId === drawerID) {
-                waitChooseDrawerSpan.innerText = data.playerName;
+            if (event.playerId === drawerID) {
+                waitChooseDrawerSpan.innerText = event.playerName;
             }
         }
 
@@ -1271,6 +1272,17 @@
             for (let i = 0; i < cachedPlayers.length; i++) {
                 let player = cachedPlayers[i];
                 if (player.id === playerID) {
+                    return player;
+                }
+            }
+
+            return null;
+        }
+
+        function getCurrentPLayerFromPLayerList() {
+            for (let i = 0; i < cachedPlayers.length; i++) {
+                let player = cachedPlayers[i];
+                if (player.id === ownID) {
                     return player;
                 }
             }
@@ -1298,34 +1310,42 @@
             timeLeftValue.innerText = "" + roundTime;
         }
 
-        function handleReadyEvent(ready) {
-            setInitialGameData(ready);
+        function handleReadyEvent(event) {
+            setInitialGameData(event);
             updateRoundsDisplay();
             updateButtonVisibilities();
 
-            if (ready.players && ready.players.length) {
-                applyPlayers(ready.players);
+            if (event.players && event.players.length) {
+                applyPlayers(event.players);
             }
-            if (ready.currentDrawing && ready.currentDrawing.length) {
+            if (event.currentDrawing && event.currentDrawing.length) {
                 applyDrawData(ready.currentDrawing);
             }
-            if (ready.wordHints && ready.wordHints.length) {
-                applyWordHints(ready.wordHints);
+            if (event.wordHints && event.wordHints.length) {
+                const player = getCurrentPLayerFromPLayerList();
+                applyWordHints(event.wordHints, player);
             }
             updateCursor();
 
             const gameStateEvents = {
-                unstarted:  () => handleGameStateUnstartedEvent(),
-                gameOver:   () => handleGameStateGameOverEvent(),
-                ongoing:    () => handleGameStateOngoingEvent(),
+                unstarted:  (event) => handleGameStateUnstartedEvent(event),
+                gameOver:   (event) => handleGameStateGameOverEvent(event),
+                ongoing:    (event) => handleGameStateOngoingEvent(event),
             };
 
-            gameStateEvents[ready.gameState]();
+            if(gameStateEvents.hasOwnProperty(event.gameState)) {
+                gameStateEvents[event.gameState](event);
+            } else {
+                console.log(`The event type ${event.gameState} has not been registered.`);
+            }
         }
 
-        function handleGameStateOngoingEvent() {
-            waitChooseDrawerSpan.innerText = drawerName;
-            waitChooseDialog.style.visibility = "visible";
+        function handleGameStateOngoingEvent(event) {
+            // Lack of wordHints implies that word has been chosen yet.
+            if (event.wordHints === null && drawerID !== ownID) {
+                waitChooseDrawerSpan.innerText = drawerName;
+                waitChooseDialog.style.visibility = "visible";
+            }
         }
 
         function initializeGameOverDialog() {
@@ -1337,7 +1357,7 @@
             gameOverScoreboard.innerHTML = "";
         }
 
-        function handleGameStateGameOverEvent() {
+        function handleGameStateGameOverEvent(event) {
             initializeGameOverDialog();
 
             //Copying array so we can sort.
@@ -1378,7 +1398,7 @@
             }
         }
 
-        function handleGameStateUnstartedEvent() {
+        function handleGameStateUnstartedEvent(event) {
             if (ownerID === ownID) {
                 startDialog.style.visibility = "visible";
             } else {
@@ -1580,7 +1600,7 @@
             maxRoundSpan.innerText = rounds;
         }
 
-        function applyWordHints(wordHints) {
+        function applyWordHints(wordHints, player) {
             wordContainer.innerHTML = "";
 
             wordHints.forEach(hint => {
@@ -1599,7 +1619,7 @@
                 wordContainer.appendChild(hintSpan);
             });
 
-            const wordLength = wordHints.reduce((total, x) => (x !== 32 ? total + 1: total), 0);
+            const wordLength = wordHints.reduce((total, x) => (x.character !== 32 ? total + 1 : total), 0);
             addWordCharCount(wordLength);
         }
 
